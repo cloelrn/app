@@ -297,3 +297,76 @@ input, textarea, select { font-family: var(--font); }
 .icon-btn { background: none; border: none; cursor: pointer; color: #ccc; }
 .icon-btn:hover { color: var(--text-secondary); }
 a.no-style { text-decoration: none; }
+
+/* ═══════════════════════════════════════════════════ */
+/* ─── RESPONSIVE ─── */
+/* ═══════════════════════════════════════════════════ */
+
+/* Fond sombre derrière la sidebar (mobile uniquement) */
+.sidebar-backdrop { display: none; }
+
+/* ─── TABLETTE & petit écran (≤ 1024px) ─── */
+@media (max-width: 1024px) {
+  .sidebar { width: 220px; min-width: 220px; }
+  .form-row-3 { grid-template-columns: 1fr 1fr; }
+  .content { padding: 18px; }
+}
+
+/* ─── MOBILE (≤ 768px) ─── */
+@media (max-width: 768px) {
+  /* La sidebar passe en panneau coulissant par-dessus le contenu */
+  .sidebar {
+    position: fixed; top: 0; left: 0; height: 100vh;
+    width: 250px; min-width: 250px;
+    transform: translateX(0); transition: transform .25s;
+    z-index: 1100; box-shadow: 2px 0 18px rgba(0,0,0,.25);
+  }
+  .sidebar.closed {
+    transform: translateX(-100%);
+    width: 250px; min-width: 250px;   /* on glisse hors écran au lieu de réduire la largeur */
+  }
+  /* Fond cliquable quand la sidebar est ouverte */
+  .sidebar:not(.closed) ~ .sidebar-backdrop {
+    display: block; position: fixed; inset: 0;
+    background: rgba(26,26,46,.45); z-index: 1050;
+  }
+
+  /* En-tête et contenu plus compacts */
+  .top-header { padding: 12px 14px; gap: 8px; }
+  .top-header h2 { font-size: 15px; }
+  .live-label { display: none; }
+  .content { padding: 14px; }
+
+  /* Formulaires et tableaux sur une colonne */
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .task-boards { grid-template-columns: 1fr; }
+
+  /* Calendrier mensuel : cases plus petites pour tenir sur 7 colonnes */
+  .calendar-grid { gap: 1px; }
+  .calendar-cell, .calendar-cell.empty { min-height: 54px; }
+  .calendar-header-cell { font-size: 9px; }
+  .day-number { font-size: 10px; }
+
+  /* Vue semaine : jours empilés */
+  .week-grid { grid-template-columns: 1fr; }
+  .week-cell { min-height: auto; }
+
+  /* Divers : marges réduites */
+  .strategy-banner { padding: 18px; }
+  .strategy-banner h3 { font-size: 16px; }
+  .strategy-banner p { font-size: 12px; }
+  .pilier-card { padding: 14px; gap: 10px; }
+  .pilier-icon { font-size: 26px; }
+  .modal-box { padding: 20px; }
+  .upload-zone { padding: 32px 16px; }
+  .file-card { padding: 16px; }
+  .report-card { padding: 16px; }
+}
+
+/* ─── TRÈS PETIT ÉCRAN (≤ 420px) ─── */
+@media (max-width: 420px) {
+  .calendar-cell, .calendar-cell.empty { min-height: 44px; }
+  .post-card.compact { font-size: 9px; padding: 1px 3px; }
+  .btn { padding: 7px 12px; font-size: 12px; }
+  .content { padding: 10px; }
+}

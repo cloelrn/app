@@ -75,12 +75,16 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 // ═══════════════════════════════════════════════════
 // APP STATE
 // ═══════════════════════════════════════════════════
-let activeTab = 'editorial';
+let activeTab = 'accueil';
 
 // ─── SIDEBAR NAV ───
 function renderNav() {
   const nav = document.getElementById('sidebar-nav');
-  nav.innerHTML = NAV.map(section => `
+  nav.innerHTML = `
+    <div style="margin-bottom:8px;padding-top:4px">
+      <button class="nav-btn ${activeTab === 'accueil' ? 'active' : ''}" data-tab="accueil">🏠&nbsp;&nbsp;Accueil</button>
+    </div>
+  ` + NAV.map(section => `
     <div style="margin-bottom:8px">
       <div class="nav-section-label">${section.section}</div>
       ${section.items.map(item => `
@@ -95,14 +99,101 @@ function renderNav() {
       activeTab = btn.dataset.tab;
       renderNav();
       renderPage();
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        document.getElementById('sidebar').classList.add('closed');
+      }
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// 0. ACCUEIL — Tableau de bord
+// ═══════════════════════════════════════════════════
+async function renderAccueil() {
+  const el = document.getElementById('page-content');
+  el.innerHTML = `<div class="empty-state">Chargement…</div>`;
+
+  const [posts, ideas, membres] = await Promise.all([
+    window.db.getPosts(),
+    window.db.getIdees(),
+    window.db.getMembres(),
+  ]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const monthPosts = posts.filter(p => {
+    const d = new Date(p.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const upcoming = posts
+    .filter(p => p.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 4);
+
+  const piliersById = Object.fromEntries(PILIERS.map(p => [p.id, p]));
+  const platformIcons = { instagram: '📸', facebook: '📘', linkedin: '💼', tiktok: '🎵' };
+
+  const quickLinks = [
+    { id: 'editorial', icon: '📅', label: 'Calendrier éditorial' },
+    { id: 'idees',     icon: '💡', label: 'Idées de posts' },
+    { id: 'strategie', icon: '🎯', label: 'Stratégie & Piliers' },
+    { id: 'charte',    icon: '🎨', label: 'Charte graphique' },
+    { id: 'templates', icon: '🔗', label: 'Templates Canva' },
+    { id: 'taches',    icon: '👥', label: 'Répartition des tâches' },
+  ];
+
+  el.innerHTML = `
+    <div class="strategy-banner">
+      <h3>👋 Bienvenue sur le Hub Communication</h3>
+      <p>L'espace central de la communication Radio Bouton 90.6 FM : calendrier éditorial, idées, charte et ressources de l'équipe, réunis au même endroit.</p>
+    </div>
+
+    <div class="metrics-grid mb-28">
+      <div class="metric-box"><div class="metric-icon">📅</div><div class="metric-value">${monthPosts.length}</div><div class="metric-label">Posts ce mois-ci</div></div>
+      <div class="metric-box"><div class="metric-icon">⏳</div><div class="metric-value">${posts.filter(p => p.date >= todayStr).length}</div><div class="metric-label">Posts à venir</div></div>
+      <div class="metric-box"><div class="metric-icon">💡</div><div class="metric-value">${ideas.length}</div><div class="metric-label">Idées en réserve</div></div>
+      <div class="metric-box"><div class="metric-icon">👥</div><div class="metric-value">${membres.length}</div><div class="metric-label">Membres de l'équipe</div></div>
+    </div>
+
+    <h4 style="color:var(--blue);margin-bottom:12px">📌 Prochains posts</h4>
+    <div class="mb-28">
+      ${upcoming.length ? upcoming.map(p => {
+        const pil = piliersById[p.pilier];
+        return `<div class="idea-card mb-12" style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:22px">${platformIcons[p.platform] || '📱'}</div>
+          <div style="flex:1">
+            <div style="font-weight:700;color:var(--blue);font-size:14px">${esc(p.title)}</div>
+            <div style="font-size:12px;color:var(--text-secondary)">${new Date(p.date).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}${pil ? ' • ' + pil.icon + ' ' + esc(pil.label) : ''}</div>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty-state">Aucun post programmé pour le moment. Direction le calendrier éditorial pour en planifier !</div>'}
+    </div>
+
+    <h4 style="color:var(--blue);margin-bottom:12px">🚀 Accès rapide</h4>
+    <div class="ideas-grid">
+      ${quickLinks.map(l => `
+        <div class="template-card" data-goto="${l.id}" style="cursor:pointer;display:flex;align-items:center;gap:14px">
+          <div style="font-size:28px">${l.icon}</div>
+          <div style="font-weight:700;color:var(--blue);font-size:14px">${l.label}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  el.querySelectorAll('[data-goto]').forEach(card => {
+    card.addEventListener('click', () => {
+      activeTab = card.dataset.goto;
+      renderNav();
+      renderPage();
     });
   });
 }
 
 function renderPage() {
   const item = NAV.flatMap(s => s.items).find(i => i.id === activeTab);
-  document.getElementById('page-title').textContent = item?.label || '';
+  document.getElementById('page-title').textContent = activeTab === 'accueil' ? 'Accueil' : (item?.label || '');
   const pages = {
+    accueil: renderAccueil,
     editorial: renderEditorial,
     idees: renderIdees,
     marronnier: renderMarronnier,
@@ -114,13 +205,44 @@ function renderPage() {
     templates: renderTemplates,
     taches: renderTaches,
   };
-  (pages[activeTab] || renderEditorial)();
+  (pages[activeTab] || renderAccueil)();
 }
 
 // ─── MENU TOGGLE ───
 document.getElementById('menu-toggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('closed');
 });
+
+// ─── RESPONSIVE : fond cliquable mobile + sidebar fermée par défaut sur petit écran ───
+(function setupResponsiveSidebar() {
+  const app = document.getElementById('app');
+  const sidebar = document.getElementById('sidebar');
+  if (!app || !sidebar) return;
+  if (!document.querySelector('.sidebar-backdrop')) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    app.appendChild(backdrop);
+    backdrop.addEventListener('click', () => sidebar.classList.add('closed'));
+  }
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    sidebar.classList.add('closed');
+  }
+
+  // Le logo ramène à l'accueil
+  const logoImg = document.querySelector('.sidebar-logo-img');
+  if (logoImg) {
+    logoImg.style.cursor = 'pointer';
+    logoImg.title = "Retour à l'accueil";
+    logoImg.addEventListener('click', () => {
+      activeTab = 'accueil';
+      renderNav();
+      renderPage();
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        sidebar.classList.add('closed');
+      }
+    });
+  }
+})();
 
 // ═══════════════════════════════════════════════════
 // MODAL HELPER
@@ -174,7 +296,7 @@ function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;
 // 1. CALENDRIER ÉDITORIAL
 // ═══════════════════════════════════════════════════
 const editorialState = {
-  posts: loadData('rb-editorial-posts', []),
+  posts: [],
   viewMode: 'month',
   month: new Date().getMonth(),
   year: new Date().getFullYear(),
@@ -218,7 +340,7 @@ function openPostModal(dateStr='', editPost=null) {
     </div>
   `;
   showModal(isEdit ? 'Modifier le post' : 'Nouveau post', html);
-  document.getElementById('pm-submit').addEventListener('click', () => {
+  document.getElementById('pm-submit').addEventListener('click', async () => {
     const title = document.getElementById('pm-title').value.trim();
     if (!title) return;
     const data = {
@@ -228,21 +350,22 @@ function openPostModal(dateStr='', editPost=null) {
       notes: document.getElementById('pm-notes').value,
     };
     if (isEdit) {
-      editorialState.posts = editorialState.posts.map(p => p.id === editPost.id ? {...data, id: editPost.id} : p);
+      await window.db.updatePost(editPost.id, data);
     } else {
-      editorialState.posts.push({...data, id: uid()});
+      await window.db.createPost(data);
     }
-    savePosts(); closeModal(); renderEditorial();
+    closeModal(); renderEditorial();
   });
   if (isEdit) {
-    document.getElementById('pm-delete').addEventListener('click', () => {
-      editorialState.posts = editorialState.posts.filter(p => p.id !== editPost.id);
-      savePosts(); closeModal(); renderEditorial();
+    document.getElementById('pm-delete').addEventListener('click', async () => {
+      await window.db.deletePost(editPost.id);
+      closeModal(); renderEditorial();
     });
   }
 }
 
-function renderEditorial() {
+async function renderEditorial() {
+  editorialState.posts = await window.db.getPosts();
   const s = editorialState;
   const todoPosts = s.posts.filter(p => p.status === 'todo');
   const scheduledPosts = s.posts.filter(p => p.status === 'scheduled');
@@ -363,8 +486,8 @@ function renderEditorial() {
 // ═══════════════════════════════════════════════════
 // 2. IDÉES DE POSTS
 // ═══════════════════════════════════════════════════
-function renderIdees() {
-  const ideas = loadData('rb-ideas', []);
+async function renderIdees() {
+  const ideas = await window.db.getIdees();
   const priorityColors = { high: '#fecaca', medium: '#fef3c7', low: '#d1fae5' };
   const priorityLabels = { high: '🔴 Urgent', medium: '🟡 Normal', low: '🟢 Optionnel' };
 
@@ -410,25 +533,29 @@ function renderIdees() {
       <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn primary" id="id-submit">${icon('check')} Ajouter</button></div>
     `;
     showModal('Nouvelle idée de post', html);
-    document.getElementById('id-submit').addEventListener('click', () => {
+    document.getElementById('id-submit').addEventListener('click', async () => {
       const title = document.getElementById('id-title').value.trim();
       if (!title) return;
-      const ideas = loadData('rb-ideas', []);
-      ideas.push({ id: uid(), title, pilier: document.getElementById('id-pilier').value, priority: document.getElementById('id-prio').value, author: document.getElementById('id-author').value, notes: document.getElementById('id-notes').value, createdAt: new Date().toISOString() });
-      saveData('rb-ideas', ideas); closeModal(); renderIdees();
+      await window.db.createIdee({
+        title,
+        pilier: document.getElementById('id-pilier').value,
+        priority: document.getElementById('id-prio').value,
+        author: document.getElementById('id-author').value,
+        notes: document.getElementById('id-notes').value,
+      });
+      closeModal(); renderIdees();
     });
   });
 
   document.querySelectorAll('[data-del-idea]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const ideas = loadData('rb-ideas', []).filter(i => i.id !== btn.dataset.delIdea);
-      saveData('rb-ideas', ideas); renderIdees();
+    btn.addEventListener('click', async () => {
+      await window.db.deleteIdee(btn.dataset.delIdea);
+      renderIdees();
     });
   });
   document.querySelectorAll('[data-promote]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const ideas = loadData('rb-ideas', []).filter(i => i.id !== btn.dataset.promote);
-      saveData('rb-ideas', ideas);
+    btn.addEventListener('click', async () => {
+      await window.db.deleteIdee(btn.dataset.promote);
       alert('💡 Idée promue ! Va dans le calendrier éditorial pour la planifier.');
       renderIdees();
     });
@@ -438,8 +565,7 @@ function renderIdees() {
 // ═══════════════════════════════════════════════════
 // 3. CALENDRIER MARRONNIER
 // ═══════════════════════════════════════════════════
-function renderPdfUploadZone(storageKey, title, description, iconEmoji) {
-  const fileData = loadData(storageKey, null);
+function renderPdfUploadZone(storageKey, fileData, title, iconEmoji) {
   const formatSize = (bytes) => bytes > 1048576 ? `${(bytes/1048576).toFixed(1)} Mo` : `${(bytes/1024).toFixed(0)} Ko`;
 
   if (fileData) {
@@ -451,11 +577,11 @@ function renderPdfUploadZone(storageKey, title, description, iconEmoji) {
           <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${formatSize(fileData.size)} • Ajouté le ${new Date(fileData.uploadedAt).toLocaleDateString('fr-FR')}</div>
         </div>
         <div class="flex-center gap-8">
-          ${fileData.dataUrl ? `<a href="${fileData.dataUrl}" download="${esc(fileData.name)}" class="no-style"><button class="btn secondary small">${icon('download')} Télécharger</button></a>` : ''}
+          ${fileData.url ? `<a href="${fileData.url}" target="_blank" rel="noopener noreferrer" class="no-style"><button class="btn secondary small">${icon('download')} Télécharger</button></a>` : ''}
           <button class="btn danger small" data-remove-file="${storageKey}">${icon('trash')}</button>
         </div>
       </div>
-      ${fileData.type==='application/pdf' && fileData.dataUrl ? `<div style="margin-top:16px;border-radius:10px;overflow:hidden;border:1px solid var(--border)"><iframe src="${fileData.dataUrl}" style="width:100%;height:500px;border:none" title="${esc(title)}"></iframe></div>` : ''}
+      ${fileData.type==='application/pdf' && fileData.url ? `<div style="margin-top:16px;border-radius:10px;overflow:hidden;border:1px solid var(--border)"><iframe src="${fileData.url}" style="width:100%;height:500px;border:none" title="${esc(title)}"></iframe></div>` : ''}
       <div style="margin-top:12px;text-align:center">
         <button class="btn ghost small" data-replace-file="${storageKey}">${icon('edit')} Remplacer le fichier</button>
         <input type="file" accept=".pdf,.zip" data-file-input="${storageKey}" style="display:none" />
@@ -484,31 +610,27 @@ function bindFileHandlers(container, callback) {
     });
   });
   container.querySelectorAll('[data-remove-file]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      localStorage.removeItem(btn.dataset.removeFile);
+    btn.addEventListener('click', async () => {
+      await window.db.removeFile(btn.dataset.removeFile);
       callback();
     });
   });
   container.querySelectorAll('input[data-file-input]').forEach(input => {
-    input.addEventListener('change', e => {
+    input.addEventListener('change', async e => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const key = input.dataset.fileInput;
-      const reader = new FileReader();
-      reader.onload = () => {
-        saveData(key, { name: file.name, size: file.size, type: file.type, dataUrl: reader.result, uploadedAt: new Date().toISOString() });
-        callback();
-      };
-      reader.readAsDataURL(file);
+      await window.db.uploadFile(input.dataset.fileInput, file);
+      callback();
     });
   });
 }
 
-function renderMarronnier() {
+async function renderMarronnier() {
   const el = document.getElementById('page-content');
+  const fileData = await window.db.getFile('rb-marronnier-pdf');
   el.innerHTML = `
     <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Le calendrier des temps forts et fêtes de l'année. Importez votre PDF pour que toute l'équipe y ait accès.</p>
-    ${renderPdfUploadZone('rb-marronnier-pdf', 'Calendrier marronnier', '', '📅')}
+    ${renderPdfUploadZone('rb-marronnier-pdf', fileData, 'Calendrier marronnier', '📅')}
   `;
   bindFileHandlers(el, renderMarronnier);
 }
@@ -516,10 +638,11 @@ function renderMarronnier() {
 // ═══════════════════════════════════════════════════
 // 4-5. MONTHLY PDF (Émissions + Jeux)
 // ═══════════════════════════════════════════════════
-function renderMonthlyPdf(prefix, title, description, iconEmoji, renderFn) {
+async function renderMonthlyPdf(prefix, title, description, iconEmoji, renderFn) {
   const selMonth = loadData(prefix+'-sel-month', new Date().getMonth());
   const selYear = loadData(prefix+'-sel-year', new Date().getFullYear());
   const storageKey = `${prefix}-${selYear}-${String(selMonth+1).padStart(2,'0')}`;
+  const fileData = await window.db.getFile(storageKey);
 
   const el = document.getElementById('page-content');
   el.innerHTML = `
@@ -541,7 +664,7 @@ function renderMonthlyPdf(prefix, title, description, iconEmoji, renderFn) {
       </div>
       <div style="padding:14px">
         <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Déposez le PDF de ${MONTHS_FR[selMonth].toLowerCase()} ${selYear}.</p>
-        ${renderPdfUploadZone(storageKey, `${title} — ${MONTHS_FR[selMonth]} ${selYear}`, '', iconEmoji)}
+        ${renderPdfUploadZone(storageKey, fileData, `${title} — ${MONTHS_FR[selMonth]} ${selYear}`, iconEmoji)}
       </div>
     </div>
   `;
@@ -557,7 +680,127 @@ function renderMonthlyPdf(prefix, title, description, iconEmoji, renderFn) {
 }
 
 function renderEmissions() { renderMonthlyPdf('rb-emissions-pdf','Planning émissions','La grille des émissions, organisée par mois. Sélectionnez le mois puis importez le PDF correspondant.','📻', renderEmissions); }
-function renderJeux() { renderMonthlyPdf('rb-jeux-pdf','Jeux-concours','Les jeux-concours mensuels. Sélectionnez le mois puis importez le PDF correspondant.','🎁', renderJeux); }
+async function renderJeux() {
+  const el = document.getElementById('page-content');
+  el.innerHTML = `<div class="empty-state">Chargement…</div>`;
+  const jeux = await window.db.getJeux();
+
+  // Lundi de la semaine d'une date donnée
+  const mondayOf = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = (d.getDay() + 6) % 7; // 0 = lundi
+    d.setDate(d.getDate() - day);
+    return d;
+  };
+  const weekLabel = (monday) => {
+    const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
+    const sameMonth = monday.getMonth() === sunday.getMonth();
+    const start = monday.toLocaleDateString('fr-FR', sameMonth ? { day:'numeric' } : { day:'numeric', month:'long' });
+    const end = sunday.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+    return `Semaine du ${start} au ${end}`;
+  };
+
+  const statutLabels = { a_venir:'À venir', en_cours:'En cours', termine:'Terminé' };
+  const statutColors = { a_venir:'#f59e0b', en_cours:'#34d399', termine:'#9ca3af' };
+
+  // Regroupement par semaine
+  const groups = {};
+  jeux.forEach(j => {
+    const monday = mondayOf(j.semaine);
+    const key = monday.toISOString().slice(0, 10);
+    if (!groups[key]) groups[key] = { monday, items: [] };
+    groups[key].items.push(j);
+  });
+  const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a)); // semaine la plus récente en haut
+
+  el.innerHTML = `
+    <div class="flex-between mb-20">
+      <p style="margin:0;color:var(--text-secondary);font-size:13px">Les jeux-concours de la radio, saisis à la main et regroupés par semaine.</p>
+      <button class="btn primary" id="jeu-new">${icon('plus')} Ajouter un jeu-concours</button>
+    </div>
+    ${jeux.length === 0 ? '<div class="empty-state">Aucun jeu-concours pour le moment. Cliquez sur « Ajouter » pour commencer 🎁</div>' : ''}
+    ${sortedKeys.map(key => {
+      const g = groups[key];
+      return `
+        <h4 style="color:var(--blue);margin:18px 0 10px">🗓️ ${weekLabel(g.monday)}</h4>
+        <div class="ideas-grid mb-12">
+          ${g.items.map(j => `
+            <div class="idea-card">
+              <div class="flex-between" style="margin-bottom:6px">
+                <span class="badge" style="background:${statutColors[j.statut]}22;color:${statutColors[j.statut]}">${statutLabels[j.statut] || ''}</span>
+                <div class="flex-center gap-6">
+                  <button class="icon-btn" data-edit-jeu="${j.id}">${icon('edit')}</button>
+                  <button class="icon-btn" data-del-jeu="${j.id}">${icon('trash')}</button>
+                </div>
+              </div>
+              <div style="font-weight:700;color:var(--blue);font-size:15px;margin-bottom:4px">${esc(j.title)}</div>
+              ${j.lot ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px">🎁 ${esc(j.lot)}</div>` : ''}
+              ${j.partenaire ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px">🤝 ${esc(j.partenaire)}</div>` : ''}
+              ${j.mecanique ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${esc(j.mecanique)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }).join('')}
+  `;
+
+  function openJeuModal(edit) {
+    const isEdit = !!edit;
+    const j = edit || { title:'', semaine:new Date().toISOString().slice(0,10), lot:'', partenaire:'', mecanique:'', statut:'a_venir' };
+    const html = `
+      ${inputField('Nom du jeu-concours','jeu-title', j.title, 'Ex : Gagnez vos places de concert')}
+      ${inputField('Semaine (choisir une date dans la semaine)','jeu-week', j.semaine, '', 'date')}
+      ${inputField('Lot à gagner','jeu-lot', j.lot, 'Ex : 2 places + meet & greet')}
+      ${inputField('Partenaire','jeu-partner', j.partenaire, 'Ex : Salle Arthur Rimbaud')}
+      ${textareaField('Mécanique (comment participer)','jeu-meca', j.mecanique, 'Ex : Commenter et identifier 2 amis')}
+      ${selectField('Statut','jeu-statut', [
+        { value:'a_venir', label:'À venir' },
+        { value:'en_cours', label:'En cours' },
+        { value:'termine', label:'Terminé' },
+      ], j.statut)}
+      <div style="display:flex;justify-content:${isEdit ? 'space-between' : 'flex-end'};margin-top:8px">
+        ${isEdit ? `<button class="btn danger" id="jeu-delete">${icon('trash')} Supprimer</button>` : ''}
+        <button class="btn primary" id="jeu-submit">${icon('check')} ${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
+      </div>
+    `;
+    showModal(isEdit ? 'Modifier le jeu-concours' : 'Ajouter un jeu-concours', html);
+    document.getElementById('jeu-submit').addEventListener('click', async () => {
+      const title = document.getElementById('jeu-title').value.trim();
+      const week = document.getElementById('jeu-week').value;
+      if (!title || !week) return;
+      const data = {
+        title, semaine: week,
+        lot: document.getElementById('jeu-lot').value,
+        partenaire: document.getElementById('jeu-partner').value,
+        mecanique: document.getElementById('jeu-meca').value,
+        statut: document.getElementById('jeu-statut').value,
+      };
+      if (isEdit) await window.db.updateJeu(edit.id, data);
+      else await window.db.createJeu(data);
+      closeModal(); renderJeux();
+    });
+    if (isEdit) {
+      document.getElementById('jeu-delete').addEventListener('click', async () => {
+        await window.db.deleteJeu(edit.id);
+        closeModal(); renderJeux();
+      });
+    }
+  }
+
+  document.getElementById('jeu-new')?.addEventListener('click', () => openJeuModal());
+  el.querySelectorAll('[data-edit-jeu]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const j = jeux.find(x => x.id === btn.dataset.editJeu);
+      if (j) openJeuModal(j);
+    });
+  });
+  el.querySelectorAll('[data-del-jeu]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await window.db.deleteJeu(btn.dataset.delJeu);
+      renderJeux();
+    });
+  });
+}
 
 // ═══════════════════════════════════════════════════
 // 6. STRATÉGIE & PILIERS
@@ -599,28 +842,33 @@ function renderReporting() { renderMonthlyPdf('rb-reporting-pdf','Reporting mens
 // ═══════════════════════════════════════════════════
 // 8. CHARTE GRAPHIQUE
 // ═══════════════════════════════════════════════════
-function renderCharte() {
-  const notes = loadData('rb-charte-notes', '');
+async function renderCharte() {
   const el = document.getElementById('page-content');
+  const notes = await window.db.getCharteNotes();
+  const chartePdf = await window.db.getFile('rb-charte-pdf');
+  const logosZip = await window.db.getFile('rb-logos-zip');
   el.innerHTML = `
     <h4 style="color:var(--blue);margin-bottom:12px">📄 Document charte graphique</h4>
-    <div class="mb-28">${renderPdfUploadZone('rb-charte-pdf','Charte graphique PDF','Importez le PDF complet de la charte graphique.','🎨')}</div>
+    <div class="mb-28">${renderPdfUploadZone('rb-charte-pdf', chartePdf, 'Charte graphique PDF', '🎨')}</div>
     <h4 style="color:var(--blue);margin-bottom:12px">📦 Dossier logos (ZIP)</h4>
-    <div class="mb-28">${renderPdfUploadZone('rb-logos-zip','Logos ZIP','Importez le dossier ZIP contenant tous les fichiers logos.','📦')}</div>
+    <div class="mb-28">${renderPdfUploadZone('rb-logos-zip', logosZip, 'Logos ZIP', '📦')}</div>
     <h4 style="color:var(--blue);margin-bottom:12px">📝 Notes & consignes</h4>
     <div class="form-group"><textarea id="charte-notes" placeholder="Ajoutez ici les consignes spécifiques : interdits, bonnes pratiques, exemples..." style="min-height:120px">${esc(notes)}</textarea></div>
   `;
   bindFileHandlers(el, renderCharte);
+  let charteNotesTimer;
   document.getElementById('charte-notes')?.addEventListener('input', e => {
-    saveData('rb-charte-notes', e.target.value);
+    clearTimeout(charteNotesTimer);
+    const val = e.target.value;
+    charteNotesTimer = setTimeout(() => window.db.setCharteNotes(val), 600);
   });
 }
 
 // ═══════════════════════════════════════════════════
 // 9. TEMPLATES CANVA
 // ═══════════════════════════════════════════════════
-function renderTemplates() {
-  const links = loadData('rb-template-links', {});
+async function renderTemplates() {
+  const links = await window.db.getTemplateLinks();
   const el = document.getElementById('page-content');
   el.innerHTML = `
     <p style="color:var(--text-secondary);font-size:13px;margin-bottom:20px">Accédez directement aux templates Canva validés. Ajoutez le lien Canva de chaque template pour que toute l'équipe puisse y accéder en un clic.</p>
@@ -655,10 +903,9 @@ function renderTemplates() {
     const container = document.getElementById(`tpl-action-${id}`);
     if (!container) return;
     container.innerHTML = `<div class="flex-center gap-6"><input id="tpl-input-${id}" value="${esc(currentUrl||'')}" placeholder="Coller le lien Canva ici…" style="flex:1;padding:6px 10px;border-radius:6px;border:1.5px solid var(--border);font-size:12px;outline:none" autofocus /><button class="btn primary small" id="tpl-save-${id}">${icon('check')}</button><button class="btn ghost small" id="tpl-cancel-${id}">${icon('x')}</button></div>`;
-    document.getElementById(`tpl-save-${id}`).addEventListener('click', () => {
-      const links = loadData('rb-template-links', {});
-      links[label] = document.getElementById(`tpl-input-${id}`).value;
-      saveData('rb-template-links', links); renderTemplates();
+    document.getElementById(`tpl-save-${id}`).addEventListener('click', async () => {
+      await window.db.setTemplateLink(label, document.getElementById(`tpl-input-${id}`).value);
+      renderTemplates();
     });
     document.getElementById(`tpl-cancel-${id}`).addEventListener('click', renderTemplates);
   }
@@ -674,8 +921,8 @@ function renderTemplates() {
 // ═══════════════════════════════════════════════════
 // 10. RÉPARTITION DES TÂCHES
 // ═══════════════════════════════════════════════════
-function renderTaches() {
-  const taches = loadData('rb-taches', []);
+async function renderTaches() {
+  const taches = await window.db.getMembres();
   const memberColors = ['#253367','#6366f1','#06b6d4','#f59e0b','#ef4444','#8b5cf6','#10b981'];
 
   document.getElementById('page-content').innerHTML = `
@@ -726,18 +973,22 @@ function renderTaches() {
         selectedColor = dot.dataset.color;
       });
     });
-    document.getElementById('tch-submit').addEventListener('click', () => {
+    document.getElementById('tch-submit').addEventListener('click', async () => {
       const name = document.getElementById('tch-name').value.trim();
       if (!name) return;
-      const taches = loadData('rb-taches', []);
-      taches.push({ id:uid(), name, role:document.getElementById('tch-role').value, tasks:document.getElementById('tch-tasks').value, color:selectedColor });
-      saveData('rb-taches', taches); closeModal(); renderTaches();
+      await window.db.createMembre({
+        name,
+        role: document.getElementById('tch-role').value,
+        tasks: document.getElementById('tch-tasks').value,
+        color: selectedColor,
+      });
+      closeModal(); renderTaches();
     });
   });
 
   document.querySelectorAll('[data-del-member]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      saveData('rb-taches', loadData('rb-taches', []).filter(t => t.id !== btn.dataset.delMember));
+    btn.addEventListener('click', async () => {
+      await window.db.deleteMembre(btn.dataset.delMember);
       renderTaches();
     });
   });
@@ -746,5 +997,7 @@ function renderTaches() {
 // ═══════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════
-renderNav();
-renderPage();
+window.initApp = function () {
+  renderNav();
+  renderPage();
+};
