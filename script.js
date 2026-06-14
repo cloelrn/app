@@ -131,7 +131,7 @@ async function renderAccueil() {
     .slice(0, 4);
 
   const piliersById = Object.fromEntries(PILIERS.map(p => [p.id, p]));
-  const platformIcons = { instagram: '📸', facebook: '📘', linkedin: '💼', tiktok: '🎵' };
+  const platformIcons = { instagram: '📸', facebook: '📘', linkedin: '💼' };
 
   const quickLinks = [
     { id: 'editorial', icon: '📅', label: 'Calendrier éditorial' },
@@ -144,7 +144,7 @@ async function renderAccueil() {
 
   el.innerHTML = `
     <div class="strategy-banner">
-      <h3>👋 Bienvenue sur le Hub Communication</h3>
+      <h3>Bienvenue sur le Hub Communication 👋</h3>
       <p>L'espace central de la communication Radio Bouton 90.6 FM : calendrier éditorial, idées, charte et ressources de l'équipe, réunis au même endroit.</p>
     </div>
 
@@ -155,7 +155,7 @@ async function renderAccueil() {
       <div class="metric-box"><div class="metric-icon">👥</div><div class="metric-value">${membres.length}</div><div class="metric-label">Membres de l'équipe</div></div>
     </div>
 
-    <h4 style="color:var(--blue);margin-bottom:12px">📌 Prochains posts</h4>
+    <h4 style="color:var(--blue);margin-bottom:12px">Prochains posts</h4>
     <div class="mb-28">
       ${upcoming.length ? upcoming.map(p => {
         const pil = piliersById[p.pilier];
@@ -169,7 +169,7 @@ async function renderAccueil() {
       }).join('') : '<div class="empty-state">Aucun post programmé pour le moment. Direction le calendrier éditorial pour en planifier !</div>'}
     </div>
 
-    <h4 style="color:var(--blue);margin-bottom:12px">🚀 Accès rapide</h4>
+    <h4 style="color:var(--blue);margin-bottom:12px">Accès rapide</h4>
     <div class="ideas-grid">
       ${quickLinks.map(l => `
         <div class="template-card" data-goto="${l.id}" style="cursor:pointer;display:flex;align-items:center;gap:14px">
